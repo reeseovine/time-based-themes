@@ -6,6 +6,9 @@ let automaticSuntimesRadio = document.getElementById("automatic-suntimes-radio")
 let manualSuntimesRadio = document.getElementById("manual-suntimes-radio");
 let sysThemeRadio = document.getElementById("system-theme-radio");
 
+let latInput = document.getElementById("latitude");
+let lonInput = document.getElementById("longitude");
+
 let checkStartupBox = document.getElementById("check-startup-only");
 let sunriseInput = document.getElementById("sunrise-time");
 let sunsetInput = document.getElementById("sunset-time");
@@ -186,24 +189,30 @@ function getChangeMode() {
         .then((obj) => {
             if (obj[CHANGE_MODE_KEY].mode === "location-suntimes") {
                 automaticSuntimesRadio.checked = true;
+                latInput.disabled = false;
+                lonInput.disabled = false;
                 manualSuntimesRadio.checked = false;
-                sysThemeRadio.checked = false;
                 sunriseInput.disabled = true;
                 sunsetInput.disabled = true;
+                sysThemeRadio.checked = false;
             }
             else if (obj[CHANGE_MODE_KEY].mode === "manual-suntimes") {
                 automaticSuntimesRadio.checked = false;
+                latInput.disabled = true;
+                lonInput.disabled = true;
                 manualSuntimesRadio.checked = true;
-                sysThemeRadio.checked = false;
                 sunriseInput.disabled = false;
                 sunsetInput.disabled = false;
+                sysThemeRadio.checked = false;
             }
             else if (obj[CHANGE_MODE_KEY].mode === "system-theme") {
                 automaticSuntimesRadio.checked = false;
+                latInput.disabled = true;
+                lonInput.disabled = true;
                 manualSuntimesRadio.checked = false;
-                sysThemeRadio.checked = true;
                 sunriseInput.disabled = true;
                 sunsetInput.disabled = true;
+                sysThemeRadio.checked = true;
             }
         }, onError);
 }
@@ -219,39 +228,56 @@ browser.storage.local.get(DEBUG_MODE_KEY)
         DEBUG_MODE = obj[DEBUG_MODE_KEY].check;
     }, onError);
 
+browser.storage.local.get([USER_LATITUDE_KEY, USER_LONGITUDE_KEY])
+    .then((obj) => {
+        latInput.value = obj[USER_LATITUDE_KEY].latitude;
+        lonInput.value = obj[USER_LONGITUDE_KEY].longitude;
+    }, onError);
+
 browser.storage.local.get([SUNRISE_TIME_KEY, SUNSET_TIME_KEY])
     .then((obj) => {
         sunriseInput.value = obj[SUNRISE_TIME_KEY].time;
         sunsetInput.value = obj[SUNSET_TIME_KEY].time;
     }, onError);
 
-automaticSuntimesRadio.addEventListener("input", function(event) {
-    if (automaticSuntimesRadio.checked) {
 
-        // Prompt for and set the user's geolocation in storage.
+function locationUpdate() {
+    if (automaticSuntimesRadio.checked) {
+        // Put the user's location in storage.
         return setGeolocation()
             .then(() => {
-                    // Calculate sunrise/sunset times based on location.
-                    calculateSuntimes().then((suntimes) => {
-                        changeLogo();
+                // Calculate sunrise/sunset times based on location.
+                calculateSuntimes().then((suntimes) => {
+                    changeLogo();
 
-                        // Make changes to settings based on calculation results.
-                        browser.storage.local.set({[CHANGE_MODE_KEY]: {mode: "location-suntimes"}});
-                        sunriseInput.disabled = true;
-                        sunsetInput.disabled = true;
+                    // Make changes to settings based on calculation results.
+                    browser.storage.local.set({[CHANGE_MODE_KEY]: {mode: "location-suntimes"}});
+                    sunriseInput.disabled = true;
+                    sunsetInput.disabled = true;
 
-                        sunriseInput.value = convertDateToString(suntimes.nextSunrise);
-                        sunsetInput.value = convertDateToString(suntimes.nextSunset);
-                        sunriseInput.dispatchEvent(sunriseInputEvent);
-                        sunsetInput.dispatchEvent(sunsetInputEvent);
-                    });
-                }, (error) => {
-                    onError(error);
-                    locationWarning.style.display = "inline";
-                    getChangeMode(); // In error, change radio buttons (and settings) back to the way they were, based on storage.
-                    changeThemeBasedOnChangeMode("location-theme");
+                    sunriseInput.value = convertDateToString(suntimes.nextSunrise);
+                    sunsetInput.value = convertDateToString(suntimes.nextSunset);
+                    sunriseInput.dispatchEvent(sunriseInputEvent);
+                    sunsetInput.dispatchEvent(sunsetInputEvent);
                 });
+            }, (error) => {
+                onError(error);
+                locationWarning.style.display = "inline";
+                getChangeMode(); // In error, change radio buttons (and settings) back to the way they were, based on storage.
+                changeThemeBasedOnChangeMode("location-theme");
+            });
     }
+}
+
+// update storage and check if the current theme should be changed.
+automaticSuntimesRadio.addEventListener("input", locationUpdate);
+latInput.addEventListener("input", function(event) {
+    browser.storage.local.set({[USER_LATITUDE_KEY]: {latitude: latInput.value}})
+        .then(locationUpdate, onError);
+});
+lonInput.addEventListener("input", function(event) {
+    browser.storage.local.set({[USER_LONGITUDE_KEY]: {value: lonInput.value}})
+        .then(locationUpdate, onError);
 });
 
 manualSuntimesRadio.addEventListener("input", function(event) {
@@ -385,6 +411,8 @@ resetDefaultBtn.addEventListener("click",
 
                     checkStartupBox.checked = DEFAULT_CHECK_TIME_STARTUP_ONLY;
                     debugModeBox.checked = DEFAULT_DEBUG_MODE;
+                    latInput.value = null;
+                    lonInput.value = null;
                     sunriseInput.value = DEFAULT_SUNRISE_TIME;
                     sunsetInput.value = DEFAULT_SUNSET_TIME;
 
@@ -402,5 +430,3 @@ resetDefaultBtn.addEventListener("click",
         }
     }
 );
-
-
