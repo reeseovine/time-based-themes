@@ -58,8 +58,8 @@ function init() {
             [CHANGE_MODE_KEY]: {mode: DEFAULT_CHANGE_MODE},
             [CHECK_TIME_STARTUP_ONLY_KEY]: {check: DEFAULT_CHECK_TIME_STARTUP_ONLY},
             [DEBUG_MODE_KEY]: {check: DEFAULT_DEBUG_MODE},
-            [USER_LATITUDE_KEY]: {value: 0},
-            [USER_LONGITUDE_KEY]: {value: 0},
+            [USER_LATITUDE_KEY]: {latitude: 0},
+            [USER_LONGITUDE_KEY]: {longitude: 0},
             [SUNRISE_TIME_KEY]: {time: DEFAULT_SUNRISE_TIME},
             [SUNSET_TIME_KEY]: {time: DEFAULT_SUNSET_TIME}
         })
@@ -466,6 +466,8 @@ function setGeolocation() {
                         .then(() => {
                             resolve();
                         });
+                    } else {
+                        reject('Geolocation is not supported by your browser.');
                     }
                 })
         } else {

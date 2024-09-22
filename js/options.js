@@ -276,7 +276,7 @@ latInput.addEventListener("input", function(event) {
         .then(locationUpdate, onError);
 });
 lonInput.addEventListener("input", function(event) {
-    browser.storage.local.set({[USER_LONGITUDE_KEY]: {value: lonInput.value}})
+    browser.storage.local.set({[USER_LONGITUDE_KEY]: {longitude: lonInput.value}})
         .then(locationUpdate, onError);
 });
 
