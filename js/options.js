@@ -242,35 +242,49 @@ browser.storage.local.get([SUNRISE_TIME_KEY, SUNSET_TIME_KEY])
 
 
 function locationUpdate() {
+    let update = () => {
+        calculateSuntimes().then((suntimes) => {
+            changeLogo();
+
+            browser.storage.local.set({[CHANGE_MODE_KEY]: {mode: "location-suntimes"}});
+
+            sunriseInput.value = convertDateToString(suntimes.nextSunrise);
+            sunsetInput.value = convertDateToString(suntimes.nextSunset);
+            sunriseInput.dispatchEvent(sunriseInputEvent);
+            sunsetInput.dispatchEvent(sunsetInputEvent);
+        });
+    };
+
     if (automaticSuntimesRadio.checked) {
-        // Put the user's location in storage.
-        return setGeolocation()
-            .then(() => {
-                // Calculate sunrise/sunset times based on location.
-                calculateSuntimes().then((suntimes) => {
-                    changeLogo();
-
-                    // Make changes to settings based on calculation results.
-                    browser.storage.local.set({[CHANGE_MODE_KEY]: {mode: "location-suntimes"}});
-                    sunriseInput.disabled = true;
-                    sunsetInput.disabled = true;
-
-                    sunriseInput.value = convertDateToString(suntimes.nextSunrise);
-                    sunsetInput.value = convertDateToString(suntimes.nextSunset);
-                    sunriseInput.dispatchEvent(sunriseInputEvent);
-                    sunsetInput.dispatchEvent(sunsetInputEvent);
-                });
+        if (latInput.value == 0 && lonInput.value == 0) {
+            setGeolocation().then(() => {
+                update();
+                browser.storage.local.get([GEOLOCATION_LATITUDE_KEY, GEOLOCATION_LONGITUDE_KEY])
+                    .then((position) => {
+                        latInput.value = position[GEOLOCATION_LATITUDE_KEY].latitude;
+                        lonInput.value = position[GEOLOCATION_LONGITUDE_KEY].longitude;
+                    });
             }, (error) => {
                 onError(error);
                 locationWarning.style.display = "inline";
-                getChangeMode(); // In error, change radio buttons (and settings) back to the way they were, based on storage.
-                changeThemeBasedOnChangeMode("location-theme");
             });
+        } else {
+            update();
+        }
+        changeThemeBasedOnChangeMode("location-theme");
     }
 }
 
 // update storage and check if the current theme should be changed.
-automaticSuntimesRadio.addEventListener("input", locationUpdate);
+automaticSuntimesRadio.addEventListener("input", function(event){
+    if (automaticSuntimesRadio.checked) {
+        latInput.disabled = false;
+        lonInput.disabled = false;
+        sunriseInput.disabled = true;
+        sunsetInput.disabled = true;
+        locationUpdate();
+    }
+});
 latInput.addEventListener("input", function(event) {
     browser.storage.local.set({[USER_LATITUDE_KEY]: {latitude: latInput.value}})
         .then(locationUpdate, onError);
@@ -283,6 +297,8 @@ lonInput.addEventListener("input", function(event) {
 manualSuntimesRadio.addEventListener("input", function(event) {
     if (manualSuntimesRadio.checked) {
         browser.storage.local.set({[CHANGE_MODE_KEY]: {mode: "manual-suntimes"}});
+        latInput.disabled = true;
+        lonInput.disabled = true;
         sunriseInput.disabled = false;
         sunsetInput.disabled = false;
         changeThemeBasedOnChangeMode("manual-suntimes").then(changeLogo);
@@ -298,6 +314,8 @@ sysThemeRadio.addEventListener("input", function(event) {
         browser.browserSettings.overrideContentColorScheme.set({value: "system"});
 
         browser.storage.local.set({[CHANGE_MODE_KEY]: {mode: "system-theme"}});
+        latInput.disabled = true;
+        lonInput.disabled = true;
         sunriseInput.disabled = true;
         sunsetInput.disabled = true;
         changeThemeBasedOnChangeMode("system-theme").then(changeLogo);
